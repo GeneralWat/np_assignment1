@@ -31,16 +31,20 @@ int main(int argc, char *argv[]){
   char delim[]=":";
   char *Desthost=strtok(argv[1],delim);
   char *Destport=strtok(NULL,delim);
+  if(Desthost == NULL || Destport == NULL){
+	  fprintf(stderr, "You must enter a IP adress and a Port");
+	  exit(1);
+  }
   // *Desthost now points to a sting holding whatever came before the delimiter, ':'.
   // *Dstport points to whatever string came after the delimiter. 
 
   /* Do magic */
   int port=atoi(Destport);
-  if(port != 5000)
-  {
-	  fprintf(stderr,"Wrong port\n");
-	  exit(1);
-  }
+	if(port < 1 || port > 65535){
+		fprintf(stderr, "Not a valid port! \n");
+		exit(1);
+	}
+
   int sockfd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
@@ -49,15 +53,20 @@ int main(int argc, char *argv[]){
 
 	
 
-	memset(&hints, 0, sizeof(hints));
+	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ((rv = getaddrinfo(Desthost, Destport, &hints, &servinfo)) != 0 ){
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+	if(inet_pton(hints.ai_family, Desthost, buf) < 1)
+	{
+		fprintf(stderr, "Not a valid IP address!");
 		exit(1);
 	}
 
+	if ((rv = getaddrinfo(Desthost, Destport, &hints, &servinfo)) != 0 ){
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return 1;
+	}
 	// loop through all the results and make a socket
 	for(p = servinfo; p != NULL; p = p->ai_next) {
 		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
@@ -65,19 +74,19 @@ int main(int argc, char *argv[]){
 			continue;
 		}
 		
-
 		break;
 	}
-
 	if (p == NULL) {
 		fprintf(stderr, "Failed to create socket\n");
 		exit(1);
+		freeaddrinfo(servinfo);
 	}
-	if (connect(sockfd,p->ai_addr, p->ai_addrlen) < 0 ) {
-			close(sockfd);
-	  		perror("Failed to connect .\n");
-	  		exit(1);
-		}
+	
+	if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1){
+		close(sockfd);
+	  	perror("Failed to connect .\n");
+	  	exit(1);
+	}
 
 	printf("client: connecting to %s :%d\n", Desthost,port);
 
@@ -88,7 +97,7 @@ int main(int argc, char *argv[]){
 	  perror("recv");
 	  exit(1);
 	}
-	buf[numbytes] = '\0';
+	buf[numbytes -1] = '\0';
 
 	printf("client: received %s\n",buf);
 	char command[10];
@@ -96,14 +105,12 @@ int main(int argc, char *argv[]){
     int i1,i2,iresult;
 	  strcpy(buf, "OK\n");
 
-	  #ifdef DEBUG 
-  		printf("Sent: %s \n", buf);
-	  #endif
+  	  printf("Sent: %s \n", buf);
 	  if ((numbytes = send(sockfd, buf, strlen(buf), 0)) == -1) {
 	    perror("sendto:");
 	    exit(1);
 	  }
-	  buf[numbytes] = '\0';
+	  buf[numbytes-1] = '\0';
 	  if ((numbytes = recv(sockfd, buf, MAXDATASIZE -1, 0)) == -1) {
 	    perror("recv");
 	    exit(1);
@@ -113,9 +120,9 @@ int main(int argc, char *argv[]){
 	  }
 
 	 
-	  buf[numbytes] = '\0';
+	  buf[numbytes-1] = '\0';
 
-		printf("client: received %s/%d",buf,numbytes);
+		printf("client: received %s \n",buf);
 
 	    rv=sscanf(buf,"%s",command);
   
@@ -133,6 +140,7 @@ int main(int argc, char *argv[]){
     	}
 			sprintf(buf, "%8.8g\n", fresult);
 			send(sockfd, buf, strlen(buf), 0);
+			printf("Sent %s \n",buf);
   			} else {
     		rv=sscanf(buf,"%s %d %d",command,&i1,&i2);
     		if(strcmp(command,"add")==0){
@@ -149,12 +157,10 @@ int main(int argc, char *argv[]){
      	 	printf("No match\n");
     		}
 			sprintf(buf, "%d\n", iresult);
-			#ifdef DEBUG
-			printf("Sent %d \n", iresult);
-			#endif
 			send(sockfd, buf, strlen(buf), 0);
+			printf("Sent: %s \n",buf);
   			}
-			buf[numbytes] = '\0';
+			buf[numbytes-1] = '\0';
 
 			if ((numbytes = recv(sockfd, buf, MAXDATASIZE -1, 0)) == -1) {
 	    		perror("recv");
@@ -164,8 +170,8 @@ int main(int argc, char *argv[]){
 	    		printf("got zero.\n");
 				exit(1);
 	  		}
-			buf[numbytes] = '\0';
-	  		printf("client: received %s/%d\n",buf,numbytes);
+			buf[numbytes-1] = '\0';
+	  		printf("client: received %s\n",buf);
 	
 	close(sockfd);
 	return 0;
