@@ -20,6 +20,10 @@
 
 int main(int argc, char *argv[]){
 
+ if (argc != 2) {
+	  fprintf(stderr,"wrong input: <ip>:<port>\n");
+	  exit(1);
+	}
   /*
     Read first input, assumes <ip>:<port> syntax, convert into one string (Desthost) and one integer (port). 
      Atm, works only on dotted notation, i.e. IPv4 and DNS. IPv6 does not work if its using ':'. 
@@ -32,24 +36,26 @@ int main(int argc, char *argv[]){
 
   /* Do magic */
   int port=atoi(Destport);
+  if(port != 5000)
+  {
+	  fprintf(stderr,"Wrong port\n");
+	  exit(1);
+  }
   int sockfd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	int numbytes;
 	char buf[MAXDATASIZE];
 
-	if (argc != 2) {
-	  fprintf(stderr,"usage: %s hostname (%d)\n",argv[0],argc);
-	  exit(1);
-	}
+	
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ((rv = getaddrinfo(Desthost, Destport, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(Desthost, Destport, &hints, &servinfo)) != 0 ){
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return 1;
+		exit(1);
 	}
 
 	// loop through all the results and make a socket
@@ -58,19 +64,20 @@ int main(int argc, char *argv[]){
 			perror("talker: socket");
 			continue;
 		}
+		
 
 		break;
 	}
 
 	if (p == NULL) {
-		fprintf(stderr, "talker: failed to create socket\n");
-		return 2;
+		fprintf(stderr, "Failed to create socket\n");
+		exit(1);
 	}
-
 	if (connect(sockfd,p->ai_addr, p->ai_addrlen) < 0 ) {
-	  perror("talker2: connect .\n");
-	  exit(1);
-	}
+			close(sockfd);
+	  		perror("Failed to connect .\n");
+	  		exit(1);
+		}
 
 	printf("client: connecting to %s :%d\n", Desthost,port);
 
@@ -83,7 +90,7 @@ int main(int argc, char *argv[]){
 	}
 	buf[numbytes] = '\0';
 
-	printf("client: received '%s'\n",buf);
+	printf("client: received %s\n",buf);
 	char command[10];
 	double f1,f2,fresult;
     int i1,i2,iresult;
@@ -108,7 +115,7 @@ int main(int argc, char *argv[]){
 	 
 	  buf[numbytes] = '\0';
 
-		printf("client: received '%s/%d'\n",buf,numbytes);
+		printf("client: received %s/%d",buf,numbytes);
 
 	    rv=sscanf(buf,"%s",command);
   
@@ -158,7 +165,7 @@ int main(int argc, char *argv[]){
 				exit(1);
 	  		}
 			buf[numbytes] = '\0';
-	  		printf("client: received '%s/%d'\n",buf,numbytes);
+	  		printf("client: received %s/%d\n",buf,numbytes);
 	
 	close(sockfd);
 	return 0;
