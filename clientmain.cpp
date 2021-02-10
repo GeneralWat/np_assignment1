@@ -111,9 +111,6 @@ int main(int argc, char *argv[]){
 		printf("client: received '%s/%d'\n",buf,numbytes);
 
 	    rv=sscanf(buf,"%s",command);
-		#ifdef DEBUG 
-  		printf("Command: |%s|\n",command);
-		#endif
   
   		if(command[0]=='f'){
     		rv=sscanf(buf,"%s %lg %lg",command,&f1,&f2);
@@ -129,10 +126,6 @@ int main(int argc, char *argv[]){
     	}
 			sprintf(buf, "%8.8g\n", fresult);
 			send(sockfd, buf, strlen(buf), 0);
-			#ifdef DEBUG
-			printf("Sent %ld bytes\n", strlen(buf));
-			#endif
-    		printf("%s %8.8g %8.8g = %8.8g\n",command,f1,f2,fresult);
   			} else {
     		rv=sscanf(buf,"%s %d %d",command,&i1,&i2);
     		if(strcmp(command,"add")==0){
@@ -153,7 +146,6 @@ int main(int argc, char *argv[]){
 			printf("Sent %d \n", iresult);
 			#endif
 			send(sockfd, buf, strlen(buf), 0);
-    		printf("%s %d %d = %d \n",command,i1,i2,iresult);
   			}
 			buf[numbytes] = '\0';
 
