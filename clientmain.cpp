@@ -81,47 +81,42 @@ int main(int argc, char *argv[]){
 	  perror("recv");
 	  exit(1);
 	}
-	
+	buf[numbytes] = '\0';
+
 	printf("client: received '%s'\n",buf);
-	char *lineBuffer = NULL;
-	size_t buffSize = 0;
-	ssize_t nread = 0;
 	char command[10];
 	double f1,f2,fresult;
     int i1,i2,iresult;
-	
-	while(1){
-	  printf(":>");
-	  nread=getline(&lineBuffer, &buffSize,stdin);
-	  if(strcmp(lineBuffer,"exit")==0){
-	    printf("You'r leaving.\n");
-	    break;
-	  }
-	  if ((numbytes = send(sockfd, lineBuffer, nread, 0)) == -1) {
+	  strcpy(buf, "OK\n");
+
+	  #ifdef DEBUG 
+  		printf("Sent: %s \n", buf);
+	  #endif
+	  if ((numbytes = send(sockfd, buf, strlen(buf), 0)) == -1) {
 	    perror("sendto:");
 	    exit(1);
 	  }
-	
-	  if ((numbytes = recv(sockfd, lineBuffer, buffSize, 0)) == -1) {
+	  buf[numbytes] = '\0';
+	  if ((numbytes = recv(sockfd, buf, MAXDATASIZE -1, 0)) == -1) {
 	    perror("recv");
 	    exit(1);
 	  }
 	  if(numbytes==0){
 	    printf("got zero.\n");
-	    break;
 	  }
-	  lineBuffer[numbytes] = '\0';
 
-		printf("client: received '%s/%d'\n",lineBuffer,numbytes);
+	 
+	  buf[numbytes] = '\0';
 
-	    rv=sscanf(lineBuffer,"%s",command);
+		printf("client: received '%s/%d'\n",buf,numbytes);
+
+	    rv=sscanf(buf,"%s",command);
 		#ifdef DEBUG 
   		printf("Command: |%s|\n",command);
 		#endif
   
   		if(command[0]=='f'){
-    		printf("Float\t");
-    		rv=sscanf(lineBuffer,"%s %lg %lg",command,&f1,&f2);
+    		rv=sscanf(buf,"%s %lg %lg",command,&f1,&f2);
     		if(strcmp(command,"fadd")==0){
       		fresult=f1+f2;
     		} else if (strcmp(command, "fsub")==0){
@@ -130,59 +125,50 @@ int main(int argc, char *argv[]){
        		fresult=f1*f2;
     		} else if (strcmp(command, "fdiv")==0){
       		fresult=f1/f2;
-			printf("Result is %8.8g", fresult);
-			sprintf(lineBuffer, "%8.8g", fresult);
+			
     	}
+			sprintf(buf, "%8.8g\n", fresult);
+			send(sockfd, buf, strlen(buf), 0);
 			#ifdef DEBUG
-			printf("Sent %8.8g \n", fresult);
+			printf("Sent %ld bytes\n", strlen(buf));
 			#endif
     		printf("%s %8.8g %8.8g = %8.8g\n",command,f1,f2,fresult);
-  		} else {
-    	printf("Int\t");
-    	rv=sscanf(lineBuffer,"%s %d %d",command,&i1,&i2);
-    	if(strcmp(command,"add")==0){
-      	iresult=i1+i2;
-    	} else if (strcmp(command, "sub")==0){
-     	 iresult=i1-i2;
-     	 printf("[%s %d %d = %d ]\n",command,i1,i2,iresult);
-    	} else if (strcmp(command, "mul")==0){
-      	iresult=i1*i2;
-    	} else if (strcmp(command, "div")==0){
-      
-      	iresult=i1/i2;
-		printf("Result is %d", iresult);
-		sprintf(lineBuffer, "%d", iresult);
-    } else {
-      printf("No match\n");
-    }
-	#ifdef DEBUG
-	printf("Sent %d \n", iresult);
-	#endif
-	//send(sockfd, &lineBuffer, strlen(lineBuffer), 0);
-    printf("%s %d %d = %d \n",command,i1,i2,iresult);
-  }
-  
-	send(sockfd, lineBuffer, strlen(lineBuffer), 0);
-	#ifdef DEBUG
-	printf("Sent %ld bytes\n", strlen(lineBuffer));
-	#endif
-	lineBuffer[numbytes] = '\0';
+  			} else {
+    		rv=sscanf(buf,"%s %d %d",command,&i1,&i2);
+    		if(strcmp(command,"add")==0){
+      		iresult=i1+i2;
+    		} else if (strcmp(command, "sub")==0){
+     		 iresult=i1-i2;
+     	 	printf("[%s %d %d = %d ]\n",command,i1,i2,iresult);
+    		} else if (strcmp(command, "mul")==0){
+      		iresult=i1*i2;
+    		} else if (strcmp(command, "div")==0){
+      		iresult=i1/i2;
+		
+			} else {
+     	 	printf("No match\n");
+    		}
+			sprintf(buf, "%d\n", iresult);
+			#ifdef DEBUG
+			printf("Sent %d \n", iresult);
+			#endif
+			send(sockfd, buf, strlen(buf), 0);
+    		printf("%s %d %d = %d \n",command,i1,i2,iresult);
+  			}
+			buf[numbytes] = '\0';
 
-	if ((numbytes = recv(sockfd, lineBuffer, buffSize, 0)) == -1) {
-	    perror("recv");
-	    exit(1);
-	  }
-	  if(numbytes==0){
-	    printf("got zero.\n");
-	    break;
-	  }
-	  lineBuffer[numbytes] = '\0';
-
-		printf("client: received '%s/%d'\n",lineBuffer,numbytes);
-	}
-	free(lineBuffer);
+			if ((numbytes = recv(sockfd, buf, MAXDATASIZE -1, 0)) == -1) {
+	    		perror("recv");
+	    		exit(1);
+	  		}
+	  		if(numbytes==0){
+	    		printf("got zero.\n");
+				exit(1);
+	  		}
+			buf[numbytes] = '\0';
+	  		printf("client: received '%s/%d'\n",buf,numbytes);
+	
 	close(sockfd);
-	 
 	return 0;
   
 }
