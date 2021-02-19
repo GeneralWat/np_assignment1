@@ -86,9 +86,6 @@ int main(int argc, char *argv[]){
   #ifdef DEBUG  
   printf("Host %s, and port %d.\n",Desthost,port);
   #endif
-  struct timeval timeout;
-  timeout.tv_sec = 5;
-  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
   if(p == NULL) {
     fprintf(stderr, "Server failed to bind \n");
     exit(1);
@@ -111,9 +108,12 @@ int main(int argc, char *argv[]){
 
   int childCount = 0;
   int readsize;
-
+  struct timeval timeout;
+  timeout.tv_sec = 5;
+  timeout.tv_usec = 0;
   while(1){
     new_sockfd = accept(sockfd, (struct sockaddr*)&their_address, &sin_size);
+    setsockopt(new_sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
     if(new_sockfd == -1){
       perror("accept");
       continue;
