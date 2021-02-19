@@ -52,14 +52,14 @@ int main(int argc, char *argv[]){
   struct addrinfo hints, *servinfo, *p;
   struct sockaddr_storage their_address; //Connectors address info
   socklen_t sin_size = sizeof(their_address);
-  struct sigaction sa;
   int yes = 1;
   char s[INET6_ADDRSTRLEN]; //Should the server be able to handle IPV6 address?
   int rv;
 
-  memset(&hints, 0, sizeof hints);
+  memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC; //Should the server be able to handle IPV6 address?
   hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
 
   if((rv = getaddrinfo(NULL, Destport, &hints, &servinfo)) != 0){
     fprintf(stderr, "getaddrinfo : %s \n", gai_strerror(rv));
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]){
       perror("Server: socket");
       continue;
     }
-    if((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))) == -1){
+    if((setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) == -1){
       perror("setsockopt ");
       exit(1);
     }
@@ -86,21 +86,32 @@ int main(int argc, char *argv[]){
   #ifdef DEBUG  
   printf("Host %s, and port %d.\n",Desthost,port);
   #endif
-
+  struct timeval timeout;
+  timeout.tv_sec = 5;
+  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
   if(p == NULL) {
     fprintf(stderr, "Server failed to bind \n");
     exit(1);
   }
-
-  if(listen(sockfd, BACKLOG) == -1){
+  
+  if((listen(sockfd, BACKLOG)) == -1){
     perror("listen");
     exit(1);
   }
-  
+ 
   char msg[1500];
+  char command[10];
+  int i1;
+  int i2;
+  int iresult, cIResult;
+  double f1;
+  double f2;
+  double fresult, cFResult, ans;
+
 
   int childCount = 0;
   int readsize;
+
   while(1){
     new_sockfd = accept(sockfd, (struct sockaddr*)&their_address, &sin_size);
     if(new_sockfd == -1){
@@ -111,22 +122,158 @@ int main(int argc, char *argv[]){
     #ifdef DEBUG
       printf("server: Connection %d from %s\n",childCount, s);
     #endif
-    struct sockaddr_in *local_sin = (struct sockaddr_in*)&their_address;
-    sprintf(msg, "TEXT TCP 1.0\n\n");
-    if(send(new_sockfd, &msg, sizeof(msg), 0) == -1){
+    strcpy(msg, "TEXT TCP 1.0\n\n");
+    if((readsize = send(new_sockfd, msg, strlen(msg), 0)) == -1){
       perror("send");
       close(new_sockfd);
       continue;
     }
-    while(1){
+    //while(1){
+      msg[readsize - 1] = '\0';
+      if((readsize = recv(new_sockfd, &msg, strlen(msg), 0)) == -1){
+        strcpy(msg, "ERROR TO\n");
+        #ifdef DEBUG
+        printf("No answer from client... \n");
+        #endif
+        readsize = send(new_sockfd, msg, strlen(msg), 0);
+        close(new_sockfd);
+        continue;
+      }
+      msg[readsize - 1] = '\0';
+      #ifdef DEBUG
+      printf("server: Recieved a message %s \n", msg);
+      #endif
 
+      if(strcmp(msg, "OK") == 0){
+        initCalcLib();
+        sprintf(command, "%s", randomType());
+        if(command[0] == 'f'){ //radomize float numbers
+          f1 = randomFloat();
+          f2 = randomFloat();
+          #ifdef DEBUG
+            printf("\n%s \n", command);
+          #endif
+          sprintf(msg, "%s %8.8g %8.8g \n", command, f1, f2);
+          if((readsize = send(new_sockfd, msg, strlen(msg), 0)) == -1){
+            perror("send");
+            close(new_sockfd);
+            continue;
+          }
+          if(strcmp(command,"fadd")==0){
+      	  	fresult=f1+f2;
+    	  	} else if (strcmp(command, "fsub")==0){
+      		  fresult=f1-f2;
+    		  } else if (strcmp(command, "fmul")==0){
+       	  	fresult=f1*f2;
+    	  	} else if (strcmp(command, "fdiv")==0){
+      		  fresult=f1/f2;
+    	    }
+          if((readsize = recv(new_sockfd, &msg, sizeof(msg), 0)) == -1){
+            strcpy(msg, "ERROR TO\n");
+            #ifdef DEBUG
+             printf("No answer from client... \n");
+             #endif
+            readsize = send(new_sockfd, msg, strlen(msg), 0);
+            close(new_sockfd);
+            continue;
+         }
+         msg[readsize - 1] = '\0';
+         rv = sscanf(msg, "%lg", &cFResult);
+         #ifdef DEBUG
+             printf("Got answer %8.8g My answer: %8.8g \n", cFResult, fresult);
+          #endif
+          ans = abs(cIResult-iresult);
+         if(ans < 0.0001){
+           strcpy(msg, "OK\n");
+           #ifdef DEBUG
+             printf("Sent OK\n");
+            #endif
+           if((readsize = send(new_sockfd, msg, strlen(msg), 0) == -1)){
+            perror("send");
+            close(new_sockfd);
+            continue;
+          }
+          msg[readsize - 1] = '\0';
+          close(new_sockfd);
+          continue;
+         }else{
+           strcpy(msg, "ERROR\n");
+           if((readsize = send(new_sockfd, msg, strlen(msg), 0)) == -1){
+            perror("send");
+            close(new_sockfd);
+            continue;
+          }
+         }
+        }else{
+          i1 = randomInt();
+          i2 = randomInt();
+          #ifdef DEBUG
+            printf("%s %d %d ", command, i1, i2);
+          #endif
+          sprintf(msg, "%s %d %d \n", command, i1, i2);
+          if((readsize = send(new_sockfd, msg, strlen(msg), 0)) == -1){
+            perror("send");
+            close(new_sockfd);
+            continue;
+          }
+          if(strcmp(command,"add")==0){
+      		iresult=i1+i2;
+    		  } else if (strcmp(command, "sub")==0){
+     		    iresult=i1-i2;
+     	    	printf("[%s %d %d = %d ]\n",command,i1,i2,iresult);
+    		  } else if (strcmp(command, "mul")==0){
+      		  iresult=i1*i2;
+    	  	} else if (strcmp(command, "div")==0){
+        		iresult=i1/i2;
+          }
+          if((readsize = recv(new_sockfd, &msg, sizeof(msg), 0)) == -1){
+            strcpy(msg, "ERROR TO\n");
+            #ifdef DEBUG
+             printf("No answer from client... \n");
+             #endif
+            readsize = send(new_sockfd, &msg, strlen(msg), 0);
+            close(new_sockfd);
+            continue;
+         }
+         msg[readsize - 1] = '\0';
+         rv = sscanf(msg, "%d", &cIResult);
+         
+          ans = abs(cIResult-iresult);
+          #ifdef DEBUG
+             printf("Got anser %d My answer: %d \n", cIResult, iresult);
+          #endif
+         if(ans < 0.0001){
+           strcpy(msg, "OK\n");
+           #ifdef DEBUG
+             printf("Sent OK\n");
+            #endif
+           if((readsize = send(new_sockfd, msg, strlen(msg), 0)) == -1){
+            perror("send");
+            close(new_sockfd);
+            continue;
+          }
+          msg[readsize - 1] = '\0';
+          close(new_sockfd);
+          continue;
+         }else{
+           strcpy(msg, "ERROR\n");
+           if((readsize = send(new_sockfd, msg, strlen(msg), 0)) == -1){
+            perror("send");
+            close(new_sockfd);
+            continue;
+          }
+          msg[readsize - 1] = '\0';
+         }
 
+        }
+      }else{
+        close(new_sockfd);
+        continue;
+      }
       
-    }
 
-  }
-
+  
 
   return 0;
-
+  }
 }
