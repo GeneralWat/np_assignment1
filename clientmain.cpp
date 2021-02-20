@@ -39,7 +39,7 @@ int main(int argc, char *argv[]){
   // *Dstport points to whatever string came after the delimiter. 
 
   /* Do magic */
-  int port=atoi(Destport);
+    int port=atoi(Destport);
 	if(port < 1 || port > 65535){
 		fprintf(stderr, "Not a valid port! \n");
 		exit(1);
@@ -57,11 +57,11 @@ int main(int argc, char *argv[]){
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if(inet_pton(hints.ai_family, Desthost, buf) < 1)
+	/*if(inet_pton(hints.ai_family, Desthost, buf) < 1)
 	{
 		fprintf(stderr, "Not a valid IP address!");
 		exit(1);
-	}
+	}*/
 
 	if ((rv = getaddrinfo(Desthost, Destport, &hints, &servinfo)) != 0 ){
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -101,15 +101,24 @@ int main(int argc, char *argv[]){
 
 	printf("client: received %s\n",buf);
 	char command[10];
+	char command2[10];
 	double f1,f2,fresult;
     int i1,i2,iresult;
-	  strcpy(buf, "OK\n");
+	sscanf(buf, "%s %s", command, command2);
+		if(strcmp(command, "TEXT ") == 0 && strcmp(command2, "TCP")){
+	  		strcpy(buf, "OK\n");
 
-  	  printf("Sent: %s \n", buf);
+  	  		printf("Sent: %s \n", buf);
 	  if ((numbytes = send(sockfd, buf, strlen(buf), 0)) == -1) {
 	    perror("sendto:");
 	    exit(1);
 	  }
+		}
+		else{
+			fprintf(stderr, "NOT OK\n");
+			close(sockfd);
+			exit(1);
+		}
 	  buf[numbytes-1] = '\0';
 	  if ((numbytes = recv(sockfd, buf, MAXDATASIZE -1, 0)) == -1) {
 	    perror("recv");
@@ -117,6 +126,8 @@ int main(int argc, char *argv[]){
 	  }
 	  if(numbytes==0){
 	    printf("got zero.\n");
+		close(sockfd);
+		exit(1);
 	  }
 
 	 
@@ -155,6 +166,8 @@ int main(int argc, char *argv[]){
 		
 			} else {
      	 	printf("No match\n");
+			  close(sockfd);
+			  exit(1);
     		}
 			sprintf(buf, "%d\n", iresult);
 			send(sockfd, buf, strlen(buf), 0);
@@ -168,6 +181,7 @@ int main(int argc, char *argv[]){
 	  		}
 	  		if(numbytes==0){
 	    		printf("got zero.\n");
+				close(sockfd);
 				exit(1);
 	  		}
 			buf[numbytes-1] = '\0';
